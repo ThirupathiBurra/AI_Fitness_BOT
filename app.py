@@ -8,7 +8,6 @@ st.write("Ask me anything about workouts, nutrition, and fitness! 💪")
 # ✅ Load API key securely
 API_KEY = st.secrets.get("GEMINI_API_KEY")
 
-
 # ✅ Configure Gemini
 genai.configure(api_key=API_KEY)
 
@@ -42,7 +41,17 @@ if prompt := st.chat_input("Type your fitness question here..."):
 
     try:
         response = st.session_state.chat.send_message(prompt)
+
+        # ✅ Robust extraction of text
+        if hasattr(response, "text") and response.text:
+            answer = response.text
+        elif hasattr(response, "candidates") and response.candidates:
+            answer = response.candidates[0].content.parts[0].text
+        else:
+            answer = "⚠️ Sorry, I couldn't generate a reply."
+
         with st.chat_message("assistant"):
-            st.markdown(response.text)
+            st.markdown(answer)
+
     except Exception as e:
-        st.error("⚠️ Could not generate a response. Check your API key or model access.")
+        st.error(f"⚠️ Could not generate a response. Details: {e}")
