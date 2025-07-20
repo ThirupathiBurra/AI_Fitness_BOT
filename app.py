@@ -7,9 +7,7 @@ st.write("Ask me anything about workouts, nutrition, and fitness! 💪")
 
 # ✅ Load API key securely
 API_KEY = st.secrets.get("GEMINI_API_KEY")
-if not API_KEY:
-    st.error("❌ GEMINI_API_KEY not found in secrets.")
-    st.stop()
+
 
 # ✅ Configure Gemini
 genai.configure(api_key=API_KEY)
