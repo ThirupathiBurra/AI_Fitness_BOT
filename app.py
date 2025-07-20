@@ -1,75 +1,50 @@
 import streamlit as st
-import requests
+import google.generativeai as genai
 
-# ---------------------------
-# CONFIG
-# ---------------------------
-OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-
-API_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-MODEL_NAME = "deepseek/deepseek-chat-v3-0324:free"
-
-st.set_page_config(page_title="Fitness Query AI Chatbot", page_icon="🏋️‍♂️")
+st.set_page_config(page_title="🏋️‍♂️ Fitness Query AI Chatbot", page_icon="🏋️‍♂️")
 st.title("🏋️‍♂️ Fitness Query AI Chatbot")
 st.write("Ask me anything about workouts, nutrition, and fitness! 💪")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a friendly, knowledgeable fitness assistant. "
-                "You provide clear, practical, and accurate answers to user questions about exercise, "
-                "workouts, nutrition, recovery, and general fitness advice. "
-                "Always keep your responses supportive, concise, and easy to understand. "
-                "If a question is outside your scope (like medical diagnosis), politely suggest that the user consult "
-                "a qualified healthcare professional. Be encouraging and motivate users to pursue healthy, safe fitness habits."
-            )
-        }
-    ]
+# ✅ Load API key securely
+API_KEY = st.secrets.get("GEMINI_API_KEY")
+if not API_KEY:
+    st.error("❌ GEMINI_API_KEY not found in secrets.")
+    st.stop()
 
-# Display chat history
-for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        st.chat_message("user").write(msg["content"])
-    elif msg["role"] == "assistant":
-        st.chat_message("assistant").write(msg["content"])
+# ✅ Configure Gemini
+genai.configure(api_key=API_KEY)
 
-# User input
-prompt = st.chat_input("Type your fitness question here...")
+# ✅ Custom system instruction
+system_instruction = (
+    "You are a friendly, knowledgeable fitness assistant. "
+    "You provide clear, practical, and accurate answers to user questions about exercise, "
+    "workouts, nutrition, recovery, and general fitness advice. "
+    "Always keep your responses supportive, concise, and easy to understand. "
+    "If a question is outside your scope (like medical diagnosis), politely suggest that the user consult "
+    "a qualified healthcare professional. Be encouraging and motivate users to pursue healthy, safe fitness habits."
+)
 
-if prompt:
-    # Add user message to history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# ✅ Initialize chat with system prompt
+if "chat" not in st.session_state:
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",  # fallback to "gemini-1.5-flash" if needed
+        system_instruction=system_instruction
+    )
+    st.session_state.chat = model.start_chat(history=[])
 
-    # Prepare payload
-    payload = {
-        "model": MODEL_NAME,
-        "messages": st.session_state.messages
-    }
+# ✅ Display previous chat history
+for msg in st.session_state.chat.history:
+    with st.chat_message("user" if msg.role == "user" else "assistant"):
+        st.markdown(msg.parts[0].text if msg.parts else msg.text)
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json"
-    }
+# ✅ Accept and process user input
+if prompt := st.chat_input("Type your fitness question here..."):
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    # Call OpenRouter API
-    with st.spinner("Thinking..."):
-        try:
-            response = requests.post(API_URL, headers=headers, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                assistant_message = data["choices"][0]["message"]["content"].strip()
-            else:
-                assistant_message = f"Oops! Something went wrong. Status code: {response.status_code}"
-        except requests.exceptions.RequestException as e:
-            assistant_message = f"Request failed: {e}"
-        except ValueError:
-            assistant_message = "Received invalid JSON from the API."
-
-    # Add assistant message to history
-    st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-
-    # Display assistant message
-    st.chat_message("assistant").write(assistant_message)
+    try:
+        response = st.session_state.chat.send_message(prompt)
+        with st.chat_message("assistant"):
+            st.markdown(response.text)
+    except Exception as e:
+        st.error("⚠️ Could not generate a response. Check your API key or model access.")
