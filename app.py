@@ -4,7 +4,7 @@ import requests
 # ---------------------------
 # CONFIG
 # ---------------------------
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 API_URL = "https://openrouter.ai/api/v1/chat/completions"  
 
 MODEL_NAME = "deepseek/deepseek-chat-v3-0324:free"  
